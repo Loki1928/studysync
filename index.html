@@ -97,6 +97,13 @@
   .ss-error-x { float: right; opacity: .6; }
   .ss-invite { background: #FFF6E9; border: 1px solid #EAD7B4; border-radius: 12px; padding: 12px 14px; font-size: 14px; margin-bottom: 14px; }
   .ss-h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 19px; margin: 0 0 10px; }
+  .ss-dayhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .ss-dayhead .ss-h3 { margin: 0; }
+  .ss-daynav { display: flex; gap: 6px; }
+  .ss-navarrow { font-size: 16px; line-height: 1; padding: 4px 12px; color: var(--ink); }
+  .ss-daynote { color: var(--muted); font-size: 12.5px; margin: -4px 0 10px; }
+  .ss-carry { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 2px 9px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .ss-carry:hover { border-color: var(--marker); color: var(--marker); }
   .ss-section { margin-top: 26px; }
   .ss-footer { margin-top: 36px; color: var(--muted); font-size: 12.5px; text-align: center; }
 
@@ -188,8 +195,10 @@
   /* ---------- week chart ---------- */
   .ss-week { padding: 16px 16px 12px; }
   .ss-week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-  .ss-daycol { text-align: center; padding: 6px 2px 4px; border-radius: 10px; }
+  .ss-daycol { text-align: center; padding: 6px 2px 4px; border-radius: 10px; cursor: pointer; }
+  .ss-daycol:hover { background: #EFF0EA; }
   .ss-daycol-today { background: #F5F6F1; }
+  .ss-daycol-viewed { outline: 1.5px solid var(--line); }
   .ss-daybars { display: flex; gap: 4px; height: 96px; align-items: flex-end; justify-content: center; }
   .ss-vbar { width: 14px; height: 100%; background: #ECEDE7; border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }
   .ss-vbar-fill { width: 100%; border-radius: 6px 6px 0 0; transition: height .3s ease; }
@@ -272,6 +281,7 @@ const niceDate = (k, withYear = false) => {
   return parseKey(k).toLocaleDateString("en-IN", opts);
 };
 const weekdayShort = (k) => parseKey(k).toLocaleDateString("en-IN", { weekday: "short" });
+const shiftDay = (k, n) => { const d = parseKey(k); return keyOf(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)); };
 const lastNDates = (n) => {
   const out = []; const now = new Date();
   for (let i = n - 1; i >= 0; i--) out.push(keyOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)));
@@ -306,7 +316,7 @@ let state = {
 };
 let ui = {
   name: "", track: "UPSC", customTrack: "", joinCode: "",
-  taskText: "", editingTask: null,
+  taskText: "", editingTask: null, viewDate: todayKey(),
   addingExam: false, examName: "", examDate: "",
   addingTest: false, testName: "", testDate: "", testFor: null,
 };
@@ -416,7 +426,7 @@ async function joinRoom() {
 
 function leaveRoom() {
   detachRoom(); clearIdentity();
-  ui = { ...ui, taskText: "", editingTask: null, addingExam: false, addingTest: false, joinCode: "" };
+  ui = { ...ui, taskText: "", editingTask: null, viewDate: todayKey(), addingExam: false, addingTest: false, joinCode: "" };
   setState({ screen: "welcome", identity: null, room: null, error: "" });
 }
 
@@ -429,7 +439,7 @@ function addTask() {
   if (!text || !state.identity) return;
   const id = uid();
   guardWrite(set(
-    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${id}`),
+    roomRef(state.identity.code, `tasks/${ui.viewDate}/${state.identity.userId}/${id}`),
     { text, done: false, progress: 0, at: Date.now() }
   ));
   ui.taskText = "";
@@ -438,19 +448,30 @@ function addTask() {
 function toggleTask(taskId, p) {
   const full = p >= 100;
   guardWrite(update(
-    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${taskId}`),
+    roomRef(state.identity.code, `tasks/${ui.viewDate}/${state.identity.userId}/${taskId}`),
     full ? { progress: 0, done: false } : { progress: 100, done: true }
   ));
 }
 function setTaskProgress(taskId, val) {
   val = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
   guardWrite(update(
-    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${taskId}`),
+    roomRef(state.identity.code, `tasks/${ui.viewDate}/${state.identity.userId}/${taskId}`),
     { progress: val, done: val >= 100 }
   ));
 }
 function removeTask(taskId) {
-  guardWrite(remove(roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${taskId}`)));
+  guardWrite(remove(roomRef(state.identity.code, `tasks/${ui.viewDate}/${state.identity.userId}/${taskId}`)));
+}
+function carryTask(taskId) {
+  const src = state.room && state.room.tasks && state.room.tasks[ui.viewDate]
+    && state.room.tasks[ui.viewDate][state.identity.userId]
+    && state.room.tasks[ui.viewDate][state.identity.userId][taskId];
+  if (!src) return;
+  const p = prog(src);
+  guardWrite(set(
+    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${uid()}`),
+    { text: src.text, done: p >= 100, progress: p, at: Date.now() }
+  ));
 }
 function addExam() {
   const name = ui.examName.trim();
@@ -511,7 +532,7 @@ function monthKeys(room, userId) {
   const now = new Date();
   const prefix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-`;
   return Object.keys(room.tasks || {})
-    .filter((k) => k.startsWith(prefix) && dayTasks(room, userId, k).length > 0)
+    .filter((k) => k.startsWith(prefix) && k <= todayKey() && dayTasks(room, userId, k).length > 0)
     .sort();
 }
 function streak(room, userId) {
@@ -618,7 +639,10 @@ function viewExamStrip(room) {
 }
 
 function viewPerson(room, userId, user, editable) {
-  const tasks = dayTasks(room, userId, todayKey());
+  const vd = ui.viewDate;
+  const isToday = vd === todayKey();
+  const isPast = vd < todayKey();
+  const tasks = dayTasks(room, userId, vd);
   const p = pctOf(tasks);
   const st = streak(room, userId);
   const items = tasks.map((t) => {
@@ -644,11 +668,16 @@ function viewPerson(room, userId, user, editable) {
       ${editable
         ? `<button class="ss-pctchip${partial ? " on" : ""}" data-action="openProgress" data-id="${t.id}" title="Set partial progress — e.g. chapter 60% done">${tp}%</button>`
         : (partial ? `<span class="ss-pctchip on">${tp}%</span>` : "")}
+      ${editable && isPast && !full ? `<button class="ss-carry" data-action="carryTask" data-id="${t.id}" title="Copy this task into today's list to finish it">&#8618; today</button>` : ""}
       ${editable ? `<button class="ss-x ss-x-task" data-action="removeTask" data-id="${t.id}" title="Delete task">&#10005;</button>` : ""}
     </li>${editor}`;
   }).join("");
   const empty = tasks.length === 0
-    ? `<li class="ss-task-none">${editable ? "Nothing planned yet — add your first task for today." : esc(user.name) + " hasn't planned today yet."}</li>`
+    ? `<li class="ss-task-none">${editable
+        ? (isToday ? "Nothing planned yet — add your first task for today."
+          : isPast ? "Nothing was logged this day. Forgot something? Add it below."
+          : "Nothing planned for this day yet — set your targets early.")
+        : (isToday ? esc(user.name) + " hasn't planned today yet." : "Nothing logged by " + esc(user.name) + " on this day.")}</li>`
     : "";
   return `<div class="ss-person" style="--pc:${user.color}">
     <div class="ss-person-head">
@@ -665,7 +694,7 @@ function viewPerson(room, userId, user, editable) {
     <div class="ss-bar"><div class="ss-bar-fill" style="width:${p ?? 0}%"></div></div>
     <ul class="ss-tasklist">${empty}${items}</ul>
     ${editable ? `<div class="ss-addrow">
-      <input id="in-task" class="ss-input" data-bind="taskText" data-enter="addTask" value="${esc(ui.taskText)}" placeholder="Add today's task — e.g. Polity Ch. 4 + 30 MCQs" maxlength="120" autocomplete="off" />
+      <input id="in-task" class="ss-input" data-bind="taskText" data-enter="addTask" value="${esc(ui.taskText)}" placeholder="${isToday ? "Add today's task — e.g. Polity Ch. 4 + 30 MCQs" : isPast ? "Add something you did this day" : "Add a target for this day"}" maxlength="120" autocomplete="off" />
       <button class="ss-btn ss-btn-primary ss-btn-sm" data-action="addTask" ${ui.taskText.trim() ? "" : "disabled"}>Add</button>
     </div>` : ""}
   </div>`;
@@ -678,7 +707,7 @@ function viewWeek(room, meId, partnerId) {
   const cols = days.map((k) => {
     const a = dayPct(room, meId, k);
     const b = partnerId ? dayPct(room, partnerId, k) : null;
-    return `<div class="ss-daycol${k === todayKey() ? " ss-daycol-today" : ""}">
+    return `<div class="ss-daycol${k === todayKey() ? " ss-daycol-today" : ""}${k === ui.viewDate ? " ss-daycol-viewed" : ""}" data-action="gotoDate" data-date="${k}" title="Open this day" role="button" tabindex="0">>
       <div class="ss-daybars">
         <div class="ss-vbar" title="${a === null ? "No tasks" : a + "%"}"><div class="ss-vbar-fill" style="height:${a ?? 0}%;background:${meColor};opacity:${a === null ? 0.15 : 1}"></div></div>
         <div class="ss-vbar" title="${b === null ? "No tasks" : b + "%"}"><div class="ss-vbar-fill" style="height:${b ?? 0}%;background:${paColor};opacity:${b === null ? 0.15 : 1}"></div></div>
@@ -765,6 +794,14 @@ function viewTests(room, identity) {
   </div>`;
 }
 
+function dayTitle(k) {
+  const diff = Math.round((parseKey(k) - parseKey(todayKey())) / 86400000);
+  if (diff === 0) return "Today's plan";
+  if (diff === -1) return "Yesterday";
+  if (diff === 1) return "Tomorrow's plan";
+  return parseKey(k).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+}
+
 function viewApp() {
   const room = state.room, identity = state.identity;
   const me = room.users[identity.userId];
@@ -788,7 +825,16 @@ function viewApp() {
     ${!partner ? `<div class="ss-invite">Waiting for your partner — share the code <strong>${room.code}</strong> and they can join from &ldquo;Join with a code&rdquo;.</div>` : ""}
     ${viewExamStrip(room)}
     <section class="ss-section">
-      <h3 class="ss-h3">Today's plan</h3>
+      <div class="ss-dayhead">
+        <h3 class="ss-h3">${dayTitle(ui.viewDate)}</h3>
+        <div class="ss-daynav">
+          ${ui.viewDate !== todayKey() ? `<button class="ss-iconbtn" data-action="gotoToday">Today</button>` : ""}
+          <button class="ss-iconbtn ss-navarrow" data-action="prevDay" title="Previous day" aria-label="Previous day">&#8249;</button>
+          <button class="ss-iconbtn ss-navarrow" data-action="nextDay" title="Next day" aria-label="Next day">&#8250;</button>
+        </div>
+      </div>
+      ${ui.viewDate < todayKey() ? `<div class="ss-daynote">Viewing a past day — finished something since? Update it here, or send it &#8618; today.</div>`
+        : ui.viewDate > todayKey() ? `<div class="ss-daynote">Planning ahead — targets set here will be waiting on that day.</div>` : ""}
       <div class="ss-columns">
         ${viewPerson(room, identity.userId, me, true)}
         ${partner
@@ -865,6 +911,11 @@ const actions = {
   removeTask(d) { removeTask(d.id); },
   openProgress(d) { ui.editingTask = ui.editingTask === d.id ? null : d.id; render(); },
   setProgress(d) { setTaskProgress(d.id, d.value); ui.editingTask = null; render(); },
+  carryTask(d) { carryTask(d.id); },
+  prevDay() { ui.viewDate = shiftDay(ui.viewDate, -1); ui.editingTask = null; render(); },
+  nextDay() { ui.viewDate = shiftDay(ui.viewDate, 1); ui.editingTask = null; render(); },
+  gotoToday() { ui.viewDate = todayKey(); ui.editingTask = null; render(); },
+  gotoDate(d) { if (d.date) { ui.viewDate = d.date; ui.editingTask = null; render(); } },
   openExam() { ui.addingExam = true; render(); },
   cancelExam() { ui.addingExam = false; ui.examName = ""; ui.examDate = ""; render(); },
   addExam() { addExam(); },
