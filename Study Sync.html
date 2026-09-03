@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StudySync — study together, stay on track</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F1F2ED;
+    --card: #FFFFFF;
+    --ink: #24293A;
+    --muted: #6E7480;
+    --line: #DCDFD6;
+    --marker: #C7702E;
+    --c1: #3F5B8B; /* person 1: slate blue */
+    --c2: #1F7A63; /* person 2: pine green */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  /* ---------- centered screens ---------- */
+  .ss-center { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .ss-boot { color: var(--muted); }
+  .ss-welcome { max-width: 460px; text-align: center; }
+  .ss-wordmark { font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 44px; letter-spacing: -0.5px; }
+  .ss-wordmark span { color: var(--c2); }
+  .ss-wordmark-sm { font-size: 22px; }
+  .ss-tagline { color: var(--muted); margin: 12px 0 28px; }
+  .ss-welcome-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .ss-fineprint { margin-top: 26px; font-size: 12.5px; color: var(--muted); }
+
+  /* ---------- shared bits ---------- */
+  .ss-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .ss-btn {
+    border: 1px solid var(--ink); background: transparent; color: var(--ink);
+    padding: 10px 18px; border-radius: 999px; font-weight: 600;
+    transition: background .15s ease, color .15s ease;
+  }
+  .ss-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .ss-btn-primary { background: var(--ink); color: #fff; }
+  .ss-btn-primary:not(:disabled):hover { background: #3a4159; }
+  .ss-btn-ghost { border-color: var(--line); background: var(--card); }
+  .ss-btn-ghost:not(:disabled):hover { border-color: var(--ink); }
+  .ss-btn-sm { padding: 7px 14px; font-size: 13.5px; }
+  .ss-btn-block { width: 100%; margin-top: 8px; }
+  .ss-input {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit;
+  }
+  .ss-input::placeholder { color: #9AA0AA; }
+  .ss-input-code { letter-spacing: 3px; font-weight: 600; text-transform: uppercase; }
+  .ss-field { display: block; margin-bottom: 16px; text-align: left; }
+  .ss-field > span { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .ss-chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; font-size: 13.5px; }
+  .ss-chip-on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .ss-trackpick { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ss-error {
+    background: #FBEDEA; border: 1px solid #E7C4BC; color: #8A3B2A;
+    padding: 10px 12px; border-radius: 10px; font-size: 13.5px; margin-bottom: 14px;
+  }
+  .ss-setup { width: 100%; max-width: 420px; padding: 24px; }
+  .ss-setup-title { font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 24px; margin: 6px 0 20px; }
+  .ss-back { border: none; background: none; color: var(--muted); padding: 0; margin-bottom: 4px; }
+  .ss-back:hover { color: var(--ink); }
+
+  /* ---------- config-needed screen ---------- */
+  .ss-config { max-width: 560px; }
+  .ss-config ol { text-align: left; color: var(--muted); padding-left: 20px; }
+  .ss-config code { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 13px; }
+
+  /* ---------- app shell ---------- */
+  .ss-app { max-width: 980px; margin: 0 auto; padding: 18px 18px 60px; }
+  .ss-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .ss-header-left { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .ss-today { color: var(--muted); font-size: 14px; }
+  .ss-header-right { display: flex; align-items: center; gap: 8px; }
+  .ss-codebtn { border: 1px dashed var(--ink); background: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: 13.5px; }
+  .ss-iconbtn { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
+  .ss-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .ss-live i { width: 8px; height: 8px; border-radius: 50%; background: #C9CCC4; display: inline-block; }
+  .ss-live.on i { background: #2E9E6B; }
+  .ss-error-bar { cursor: pointer; }
+  .ss-error-x { float: right; opacity: .6; }
+  .ss-invite { background: #FFF6E9; border: 1px solid #EAD7B4; border-radius: 12px; padding: 12px 14px; font-size: 14px; margin-bottom: 14px; }
+  .ss-h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 19px; margin: 0 0 10px; }
+  .ss-section { margin-top: 26px; }
+  .ss-footer { margin-top: 36px; color: var(--muted); font-size: 12.5px; text-align: center; }
+
+  /* ---------- exam strip ---------- */
+  .ss-examstrip { margin-top: 6px; }
+  .ss-exam-empty { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+  .ss-examrow { display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; }
+  .ss-examcard {
+    position: relative; background: var(--card); border: 1px solid var(--line);
+    border-top: 3px solid var(--marker); border-radius: 12px;
+    padding: 12px 34px 12px 14px; min-width: 158px;
+  }
+  .ss-examdays {
+    font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 30px;
+    line-height: 1; color: var(--marker); display: flex; align-items: baseline; gap: 7px;
+  }
+  .ss-examdays em { font-style: normal; font-family: 'Public Sans', sans-serif; font-size: 12px; color: var(--muted); font-weight: 500; }
+  .ss-examname { font-weight: 600; margin-top: 6px; }
+  .ss-examdate { color: var(--muted); font-size: 12.5px; }
+  .ss-examadd { border: 1px dashed var(--line); background: transparent; border-radius: 12px; padding: 12px 16px; color: var(--muted); min-width: 150px; }
+  .ss-examadd:hover { border-color: var(--ink); color: var(--ink); }
+  .ss-examform { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; min-width: 250px; }
+  .ss-examform-actions { display: flex; gap: 8px; }
+  .ss-exam-past { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+  .ss-x { position: absolute; top: 8px; right: 8px; border: none; background: none; color: #B9BDC4; font-size: 12px; padding: 4px; }
+  .ss-x:hover { color: #8A3B2A; }
+
+  /* ---------- person columns ---------- */
+  .ss-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .ss-columns { grid-template-columns: 1fr; } }
+  .ss-person {
+    background: var(--card); border: 1px solid var(--line);
+    border-left: 4px solid var(--pc, var(--line)); border-radius: 14px; padding: 14px 16px;
+  }
+  .ss-person-empty { display: flex; align-items: center; justify-content: center; min-height: 160px; }
+  .ss-empty-msg { color: var(--muted); font-size: 14px; text-align: center; }
+  .ss-person-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ss-person-id { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ss-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--pc, var(--muted)); display: inline-block; flex: none; }
+  .ss-youtag { font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .ss-track { font-size: 12.5px; color: #fff; background: var(--pc, var(--muted)); border-radius: 999px; padding: 2px 10px; font-weight: 600; }
+  .ss-person-stats { display: flex; align-items: center; gap: 10px; }
+  .ss-streak { font-size: 12px; color: var(--marker); font-weight: 600; }
+  .ss-pct { font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 22px; }
+  .ss-bar { height: 6px; background: #ECEDE7; border-radius: 999px; overflow: hidden; margin: 10px 0 6px; }
+  .ss-bar-fill { height: 100%; background: var(--pc, var(--ink)); border-radius: 999px; transition: width .3s ease; }
+
+  .ss-tasklist { list-style: none; margin: 6px 0 0; padding: 0; }
+  .ss-task { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #F0F1EB; position: relative; }
+  .ss-task:last-child { border-bottom: none; }
+  .ss-task-none { color: var(--muted); font-size: 14px; padding: 10px 0; }
+  .ss-check {
+    width: 22px; height: 22px; flex: none; border-radius: 7px;
+    border: 1.5px solid var(--pc, var(--line)); background: #fff;
+    color: #fff; font-size: 13px; line-height: 1; padding: 0;
+    transition: background .15s ease;
+  }
+  .ss-task-done .ss-check { background: var(--pc, var(--ink)); }
+  .ss-check:disabled { cursor: default; opacity: .9; }
+  .ss-task-text { flex: 1; word-break: break-word; }
+  .ss-task-done .ss-task-text { color: var(--muted); text-decoration: line-through; }
+  .ss-x-task { position: static; opacity: 0; }
+  .ss-task:hover .ss-x-task { opacity: 1; }
+  @media (hover: none) { .ss-x-task { opacity: .6; } }
+  .ss-addrow { display: flex; gap: 8px; margin-top: 12px; }
+
+  /* ---------- week chart ---------- */
+  .ss-week { padding: 16px 16px 12px; }
+  .ss-week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .ss-daycol { text-align: center; padding: 6px 2px 4px; border-radius: 10px; }
+  .ss-daycol-today { background: #F5F6F1; }
+  .ss-daybars { display: flex; gap: 4px; height: 96px; align-items: flex-end; justify-content: center; }
+  .ss-vbar { width: 14px; height: 100%; background: #ECEDE7; border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }
+  .ss-vbar-fill { width: 100%; border-radius: 6px 6px 0 0; transition: height .3s ease; }
+  .ss-daylabel { margin-top: 6px; font-size: 12px; font-weight: 600; }
+  .ss-daylabel em { display: block; font-style: normal; font-weight: 400; color: var(--muted); font-size: 11px; }
+  .ss-week-legend { display: flex; gap: 18px; margin-top: 12px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .ss-week-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+
+  /* ---------- month ---------- */
+  .ss-monthrow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .ss-monthrow { grid-template-columns: 1fr; } }
+  .ss-month-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .ss-month-big { font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 40px; line-height: 1.15; color: var(--pc, var(--ink)); }
+  .ss-month-sub { color: var(--muted); font-size: 13.5px; margin-bottom: 8px; }
+
+  /* ---------- tests ---------- */
+  .ss-testlist { list-style: none; margin: 0 0 12px; padding: 0; }
+  .ss-test { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #F0F1EB; flex-wrap: wrap; position: relative; }
+  .ss-test:last-child { border-bottom: none; }
+  .ss-test-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ss-test-info { display: flex; flex-direction: column; min-width: 0; }
+  .ss-test-info strong { word-break: break-word; }
+  .ss-test-meta { font-size: 12.5px; color: var(--muted); }
+  .ss-test-side { display: flex; align-items: center; gap: 8px; }
+  .ss-test .ss-x { position: static; }
+  .ss-tag { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--muted); }
+  .ss-tag-good { background: #E8F2EC; border-color: #BFDCCB; color: #1F6B45; font-weight: 600; }
+  .ss-tag-bad { background: #FBEDEA; border-color: #E7C4BC; color: #8A3B2A; font-weight: 600; }
+  .ss-test-actions { display: flex; gap: 6px; }
+  .ss-mini { border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; border: 1px solid; }
+  .ss-mini-good { background: #E8F2EC; border-color: #BFDCCB; color: #1F6B45; }
+  .ss-mini-bad { background: #FBEDEA; border-color: #E7C4BC; color: #8A3B2A; }
+  .ss-testform { display: grid; gap: 8px; border-top: 1px dashed var(--line); padding-top: 12px; }
+</style>
+</head>
+<body>
+<div id="app"><div class="ss-center"><div class="ss-boot">Opening your study room…</div></div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase, ref, get, set, remove, onValue, off, runTransaction
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+/* ============================================================
+   1. FIREBASE CONFIG — paste yours here (see SETUP.md)
+   Firebase Console → Project settings → Your apps → Web app
+   ============================================================ */
+ const firebaseConfig = {
+    apiKey: "AIzaSyAWnTvm_3HSwDmevp1x-sR7B8z8nknIHro",
+    authDomain: "studysync-6d403.firebaseapp.com",
+    databaseURL: "https://studysync-6d403-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "studysync-6d403",
+    storageBucket: "studysync-6d403.firebasestorage.app",
+    messagingSenderId: "266412790521",
+    appId: "1:266412790521:web:f954b8fb5b1c0c11df4828"
+  };
+
+const CONFIGURED = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE");
+const SLOT_COLORS = ["#3F5B8B", "#1F7A63"];
+const IDENTITY_KEY = "studysync-identity";
+
+let db = null;
+if (CONFIGURED) {
+  const fbApp = initializeApp(firebaseConfig);
+  db = getDatabase(fbApp);
+}
+
+/* ============================================================
+   date helpers
+   ============================================================ */
+const pad = (n) => String(n).padStart(2, "0");
+const keyOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const todayKey = () => keyOf(new Date());
+const parseKey = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+const daysLeft = (dateKey) => Math.round((parseKey(dateKey) - parseKey(todayKey())) / 86400000);
+const niceDate = (k, withYear = false) => {
+  const opts = { day: "numeric", month: "short" };
+  if (withYear) opts.year = "numeric";
+  return parseKey(k).toLocaleDateString("en-IN", opts);
+};
+const weekdayShort = (k) => parseKey(k).toLocaleDateString("en-IN", { weekday: "short" });
+const lastNDates = (n) => {
+  const out = []; const now = new Date();
+  for (let i = n - 1; i >= 0; i--) out.push(keyOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)));
+  return out;
+};
+
+/* ============================================================
+   misc helpers
+   ============================================================ */
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+const makeRoomCode = () => {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let c = ""; for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
+};
+const esc = (s) => String(s ?? "")
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const roomRef = (code, path = "") => ref(db, `rooms/${code}${path ? "/" + path : ""}`);
+
+/* ============================================================
+   state
+   ============================================================ */
+let state = {
+  screen: CONFIGURED ? "boot" : "config", // config | boot | welcome | create | join | app
+  identity: null,  // { code, userId, name }
+  room: null,
+  error: "",
+  busy: false,
+  online: false,
+  copied: false,
+};
+let ui = {
+  name: "", track: "UPSC", customTrack: "", joinCode: "",
+  taskText: "",
+  addingExam: false, examName: "", examDate: "",
+  addingTest: false, testName: "", testDate: "", testFor: null,
+};
+let roomListener = null;
+let connListener = null;
+
+function setState(patch) { Object.assign(state, patch); render(); }
+
+/* ============================================================
+   identity (localStorage)
+   ============================================================ */
+function readIdentity() {
+  try { const raw = localStorage.getItem(IDENTITY_KEY); return raw ? JSON.parse(raw) : null; }
+  catch { return null; }
+}
+function writeIdentity(id) { try { localStorage.setItem(IDENTITY_KEY, JSON.stringify(id)); } catch {} }
+function clearIdentity() { try { localStorage.removeItem(IDENTITY_KEY); } catch {} }
+
+/* ============================================================
+   firebase sync
+   ============================================================ */
+function attachRoom(code) {
+  detachRoom();
+  roomListener = onValue(roomRef(code), (snap) => {
+    const room = snap.val();
+    if (!room || !room.users) {
+      detachRoom(); clearIdentity();
+      setState({ screen: "welcome", room: null, identity: null, error: "This room no longer exists." });
+      return;
+    }
+    setState({ room, screen: "app" });
+  }, (err) => {
+    setState({ error: "Connection problem: " + (err && err.message ? err.message : "couldn't reach the database.") });
+  });
+  connListener = onValue(ref(db, ".info/connected"), (snap) => {
+    setState({ online: !!snap.val() });
+  });
+}
+function detachRoom() {
+  if (roomListener && state.identity) { try { off(roomRef(state.identity.code)); } catch {} roomListener = null; }
+  try { off(ref(db, ".info/connected")); } catch {}
+  connListener = null;
+}
+
+async function createRoom() {
+  const name = ui.name.trim();
+  const track = (ui.track === "Other" ? ui.customTrack : ui.track).trim();
+  if (!name || !track) return;
+  setState({ busy: true, error: "" });
+  try {
+    let code = makeRoomCode();
+    for (let i = 0; i < 4; i++) {
+      const snap = await get(roomRef(code));
+      if (!snap.exists()) break;
+      code = makeRoomCode();
+    }
+    const userId = "u-" + uid();
+    const room = {
+      code, createdAt: Date.now(),
+      users: { [userId]: { name, track, color: SLOT_COLORS[0], joinedAt: Date.now() } },
+    };
+    await set(roomRef(code), room);
+    const identity = { code, userId, name };
+    writeIdentity(identity);
+    state.identity = identity;
+    attachRoom(code);
+  } catch (e) {
+    setState({ busy: false, error: "Couldn't create the room. Check your internet and try again." });
+    return;
+  }
+  setState({ busy: false });
+}
+
+async function joinRoom() {
+  const code = ui.joinCode.trim().toUpperCase();
+  const name = ui.name.trim();
+  const track = (ui.track === "Other" ? ui.customTrack : ui.track).trim();
+  if (!code || !name || !track) return;
+  setState({ busy: true, error: "" });
+  try {
+    const snap = await get(roomRef(code));
+    if (!snap.exists()) {
+      setState({ busy: false, error: "No room found with that code. Double-check it with your study partner." });
+      return;
+    }
+    const userId = "u-" + uid();
+    const result = await runTransaction(roomRef(code, "users"), (users) => {
+      users = users || {};
+      if (Object.keys(users).length >= 2) return; // abort — room full
+      users[userId] = { name, track, color: SLOT_COLORS[1], joinedAt: Date.now() };
+      return users;
+    });
+    if (!result.committed) {
+      setState({ busy: false, error: "This room already has two people. StudySync rooms are built for exactly two." });
+      return;
+    }
+    const identity = { code, userId, name };
+    writeIdentity(identity);
+    state.identity = identity;
+    attachRoom(code);
+  } catch (e) {
+    setState({ busy: false, error: "Couldn't join the room. Check your internet and try again." });
+    return;
+  }
+  setState({ busy: false });
+}
+
+function leaveRoom() {
+  detachRoom(); clearIdentity();
+  ui = { ...ui, taskText: "", addingExam: false, addingTest: false, joinCode: "" };
+  setState({ screen: "welcome", identity: null, room: null, error: "" });
+}
+
+/* ---------- targeted writes (no clobbering each other) ---------- */
+function guardWrite(p) {
+  p.catch(() => setState({ error: "Couldn't save that. Check your internet and try again." }));
+}
+function addTask() {
+  const text = ui.taskText.trim();
+  if (!text || !state.identity) return;
+  const id = uid();
+  guardWrite(set(
+    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${id}`),
+    { text, done: false, at: Date.now() }
+  ));
+  ui.taskText = "";
+  render();
+}
+function toggleTask(taskId, done) {
+  guardWrite(set(
+    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${taskId}/done`),
+    !done
+  ));
+}
+function removeTask(taskId) {
+  guardWrite(remove(roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${taskId}`)));
+}
+function addExam() {
+  const name = ui.examName.trim();
+  if (!name || !ui.examDate || !state.identity) return;
+  const id = uid();
+  guardWrite(set(roomRef(state.identity.code, `exams/${id}`), {
+    name, date: ui.examDate, addedBy: state.identity.userId
+  }));
+  ui.examName = ""; ui.examDate = ""; ui.addingExam = false;
+  render();
+}
+function removeExam(id) {
+  guardWrite(remove(roomRef(state.identity.code, `exams/${id}`)));
+}
+function addTest() {
+  const name = ui.testName.trim();
+  const forUser = ui.testFor || state.identity.userId;
+  if (!name || !ui.testDate || !state.identity) return;
+  const id = uid();
+  guardWrite(set(roomRef(state.identity.code, `tests/${id}`), {
+    name, date: ui.testDate, userId: forUser, status: "scheduled", addedBy: state.identity.userId
+  }));
+  ui.testName = ""; ui.testDate = ""; ui.addingTest = false;
+  render();
+}
+function setTestStatus(id, status) {
+  guardWrite(set(roomRef(state.identity.code, `tests/${id}/status`), status));
+}
+function removeTest(id) {
+  guardWrite(remove(roomRef(state.identity.code, `tests/${id}`)));
+}
+
+/* ============================================================
+   progress maths
+   ============================================================ */
+function dayTasks(room, userId, dateKey) {
+  const node = room.tasks && room.tasks[dateKey] && room.tasks[dateKey][userId];
+  if (!node) return [];
+  return Object.entries(node)
+    .map(([id, t]) => ({ id, ...t }))
+    .sort((a, b) => (a.at || 0) - (b.at || 0));
+}
+function pctOf(list) {
+  if (!list.length) return null;
+  return Math.round((100 * list.filter((t) => t.done).length) / list.length);
+}
+function dayPct(room, userId, dateKey) { return pctOf(dayTasks(room, userId, dateKey)); }
+function rangeAvg(room, userId, dateKeys) {
+  const vals = dateKeys.map((k) => dayPct(room, userId, k)).filter((v) => v !== null);
+  if (!vals.length) return null;
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+}
+function monthKeys(room, userId) {
+  const now = new Date();
+  const prefix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-`;
+  return Object.keys(room.tasks || {})
+    .filter((k) => k.startsWith(prefix) && dayTasks(room, userId, k).length > 0)
+    .sort();
+}
+function streak(room, userId) {
+  let s = 0; const now = new Date();
+  for (let i = 0; i < 365; i++) {
+    const k = keyOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i));
+    const doneAny = dayTasks(room, userId, k).some((t) => t.done);
+    if (doneAny) s++;
+    else if (i === 0) continue; // today not done yet shouldn't break the streak
+    else break;
+  }
+  return s;
+}
+const objList = (o) => o ? Object.entries(o).map(([id, v]) => ({ id, ...v })) : [];
+
+/* ============================================================
+   views
+   ============================================================ */
+function viewConfig() {
+  return `<div class="ss-center"><div class="ss-welcome ss-config">
+    <div class="ss-wordmark">Study<span>Sync</span></div>
+    <p class="ss-tagline">Almost there — the app just needs its database keys.</p>
+    <div class="ss-card" style="text-align:left">
+      <ol>
+        <li>Create a free project at <code>console.firebase.google.com</code></li>
+        <li>Add a <strong>Realtime Database</strong> and publish the rules from SETUP.md</li>
+        <li>Register a <strong>Web app</strong> and copy its <code>firebaseConfig</code></li>
+        <li>Open <code>index.html</code> and replace the <code>PASTE_YOUR_…</code> block near the top of the script</li>
+        <li>Re-upload to GitHub — this screen will disappear</li>
+      </ol>
+    </div>
+    <p class="ss-fineprint">Full step-by-step instructions are in SETUP.md alongside this file.</p>
+  </div></div>`;
+}
+
+function viewWelcome() {
+  return `<div class="ss-center"><div class="ss-welcome">
+    <div class="ss-wordmark">Study<span>Sync</span></div>
+    <p class="ss-tagline">One board, two people. Plan the day, tick it off, and watch each other stay on track — UPSC on one side, CA on the other.</p>
+    ${state.error ? `<div class="ss-error">${esc(state.error)}</div>` : ""}
+    <div class="ss-welcome-actions">
+      <button class="ss-btn ss-btn-primary" data-action="goCreate">Create a room</button>
+      <button class="ss-btn ss-btn-ghost" data-action="goJoin">Join with a code</button>
+    </div>
+    <p class="ss-fineprint">The room is shared through its code — keep the code between the two of you.</p>
+  </div></div>`;
+}
+
+function viewSetup(mode) {
+  const finalTrack = ui.track === "Other" ? ui.customTrack : ui.track;
+  const canGo = ui.name.trim() && finalTrack.trim() && (mode === "create" || ui.joinCode.trim().length >= 4);
+  const chips = ["UPSC", "CA", "Other"].map((t) =>
+    `<button type="button" class="ss-chip${ui.track === t ? " ss-chip-on" : ""}" data-action="pickTrack" data-value="${t}">${t}</button>`
+  ).join("");
+  return `<div class="ss-center"><div class="ss-card ss-setup">
+    <button class="ss-back" data-action="goWelcome">&larr; Back</button>
+    <h2 class="ss-setup-title">${mode === "create" ? "Start your study room" : "Join your partner's room"}</h2>
+    ${mode === "join" ? `
+      <label class="ss-field"><span>Room code</span>
+        <input id="in-code" class="ss-input ss-input-code" data-bind="joinCode" value="${esc(ui.joinCode)}" placeholder="e.g. K7M2QX" maxlength="8" autocomplete="off" />
+      </label>` : ""}
+    <label class="ss-field"><span>Your name</span>
+      <input id="in-name" class="ss-input" data-bind="name" value="${esc(ui.name)}" placeholder="What should the board call you?" maxlength="24" autocomplete="off" />
+    </label>
+    <div class="ss-field"><span>What are you preparing for?</span>
+      <div class="ss-trackpick">${chips}</div>
+      ${ui.track === "Other" ? `<input id="in-track" class="ss-input" style="margin-top:8px" data-bind="customTrack" value="${esc(ui.customTrack)}" placeholder="Name the exam or goal" maxlength="30" />` : ""}
+    </div>
+    ${state.error ? `<div class="ss-error">${esc(state.error)}</div>` : ""}
+    <button class="ss-btn ss-btn-primary ss-btn-block" data-action="${mode === "create" ? "createRoom" : "joinRoom"}" ${canGo && !state.busy ? "" : "disabled"}>
+      ${state.busy ? "Setting things up…" : mode === "create" ? "Create room &amp; get code" : "Join room"}
+    </button>
+  </div></div>`;
+}
+
+function viewExamStrip(room) {
+  const exams = objList(room.exams);
+  const upcoming = exams.filter((e) => daysLeft(e.date) >= 0).sort((a, b) => a.date < b.date ? -1 : 1);
+  const past = exams.filter((e) => daysLeft(e.date) < 0);
+  const cards = upcoming.map((e) => {
+    const d = daysLeft(e.date);
+    return `<div class="ss-examcard">
+      <div class="ss-examdays">${d === 0 ? "Today" : d}${d > 0 ? `<em>${d === 1 ? "day left" : "days left"}</em>` : ""}</div>
+      <div class="ss-examname">${esc(e.name)}</div>
+      <div class="ss-examdate">${niceDate(e.date, true)}</div>
+      <button class="ss-x" data-action="removeExam" data-id="${e.id}" title="Remove exam">&#10005;</button>
+    </div>`;
+  }).join("");
+  const form = ui.addingExam
+    ? `<div class="ss-examform">
+        <input id="in-exam-name" class="ss-input" data-bind="examName" value="${esc(ui.examName)}" placeholder="Exam name (e.g. UPSC Prelims)" maxlength="40" />
+        <input id="in-exam-date" class="ss-input" type="date" data-bind="examDate" value="${esc(ui.examDate)}" min="${todayKey()}" />
+        <div class="ss-examform-actions">
+          <button class="ss-btn ss-btn-primary ss-btn-sm" data-action="addExam" ${ui.examName.trim() && ui.examDate ? "" : "disabled"}>Add</button>
+          <button class="ss-btn ss-btn-ghost ss-btn-sm" data-action="cancelExam">Cancel</button>
+        </div>
+      </div>`
+    : `<button class="ss-examadd" data-action="openExam">+ Add exam date</button>`;
+  return `<section class="ss-examstrip">
+    ${upcoming.length === 0 && !ui.addingExam ? `<div class="ss-exam-empty">No exam dates yet — add your final papers so the countdown starts.</div>` : ""}
+    <div class="ss-examrow">${cards}${form}</div>
+    ${past.length ? `<div class="ss-exam-past">Done &amp; dusted: ${past.map((e) => esc(e.name)).join(", ")}</div>` : ""}
+  </section>`;
+}
+
+function viewPerson(room, userId, user, editable) {
+  const tasks = dayTasks(room, userId, todayKey());
+  const p = pctOf(tasks);
+  const st = streak(room, userId);
+  const items = tasks.map((t) => `
+    <li class="ss-task${t.done ? " ss-task-done" : ""}">
+      <button class="ss-check" ${editable ? `data-action="toggleTask" data-id="${t.id}" data-done="${t.done ? 1 : 0}"` : "disabled"} aria-label="${t.done ? "Mark not done" : "Mark done"}">${t.done ? "&#10003;" : ""}</button>
+      <span class="ss-task-text">${esc(t.text)}</span>
+      ${editable ? `<button class="ss-x ss-x-task" data-action="removeTask" data-id="${t.id}" title="Delete task">&#10005;</button>` : ""}
+    </li>`).join("");
+  const empty = tasks.length === 0
+    ? `<li class="ss-task-none">${editable ? "Nothing planned yet — add your first task for today." : esc(user.name) + " hasn't planned today yet."}</li>`
+    : "";
+  return `<div class="ss-person" style="--pc:${user.color}">
+    <div class="ss-person-head">
+      <div class="ss-person-id">
+        <span class="ss-dot"></span><strong>${esc(user.name)}</strong>
+        ${editable ? `<span class="ss-youtag">you</span>` : ""}
+        <span class="ss-track">${esc(user.track)}</span>
+      </div>
+      <div class="ss-person-stats">
+        ${st > 1 ? `<span class="ss-streak">${st}-day streak</span>` : ""}
+        <span class="ss-pct">${p === null ? "—" : p + "%"}</span>
+      </div>
+    </div>
+    <div class="ss-bar"><div class="ss-bar-fill" style="width:${p ?? 0}%"></div></div>
+    <ul class="ss-tasklist">${empty}${items}</ul>
+    ${editable ? `<div class="ss-addrow">
+      <input id="in-task" class="ss-input" data-bind="taskText" data-enter="addTask" value="${esc(ui.taskText)}" placeholder="Add today's task — e.g. Polity Ch. 4 + 30 MCQs" maxlength="120" autocomplete="off" />
+      <button class="ss-btn ss-btn-primary ss-btn-sm" data-action="addTask" ${ui.taskText.trim() ? "" : "disabled"}>Add</button>
+    </div>` : ""}
+  </div>`;
+}
+
+function viewWeek(room, meId, partnerId) {
+  const days = lastNDates(7);
+  const meColor = room.users[meId].color;
+  const paColor = partnerId ? room.users[partnerId].color : "#C9CCC4";
+  const cols = days.map((k) => {
+    const a = dayPct(room, meId, k);
+    const b = partnerId ? dayPct(room, partnerId, k) : null;
+    return `<div class="ss-daycol${k === todayKey() ? " ss-daycol-today" : ""}">
+      <div class="ss-daybars">
+        <div class="ss-vbar" title="${a === null ? "No tasks" : a + "%"}"><div class="ss-vbar-fill" style="height:${a ?? 0}%;background:${meColor};opacity:${a === null ? 0.15 : 1}"></div></div>
+        <div class="ss-vbar" title="${b === null ? "No tasks" : b + "%"}"><div class="ss-vbar-fill" style="height:${b ?? 0}%;background:${paColor};opacity:${b === null ? 0.15 : 1}"></div></div>
+      </div>
+      <div class="ss-daylabel">${weekdayShort(k)}<em>${niceDate(k).split(" ")[0]}</em></div>
+    </div>`;
+  }).join("");
+  const meAvg = rangeAvg(room, meId, days);
+  const paAvg = partnerId ? rangeAvg(room, partnerId, days) : null;
+  return `<div class="ss-card ss-week">
+    <div class="ss-week-grid">${cols}</div>
+    <div class="ss-week-legend">
+      <span><i style="background:${meColor}"></i>${esc(room.users[meId].name)}${meAvg !== null ? ` &middot; ${meAvg}% avg` : ""}</span>
+      ${partnerId ? `<span><i style="background:${paColor}"></i>${esc(room.users[partnerId].name)}${paAvg !== null ? ` &middot; ${paAvg}% avg` : ""}</span>` : ""}
+    </div>
+  </div>`;
+}
+
+function viewMonth(room, meId, partnerId) {
+  const monthName = new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  const cards = [meId, partnerId].filter(Boolean).map((id) => {
+    const u = room.users[id];
+    const keys = monthKeys(room, id);
+    const avg = rangeAvg(room, id, keys);
+    const total = keys.reduce((n, k) => n + dayTasks(room, id, k).length, 0);
+    const done = keys.reduce((n, k) => n + dayTasks(room, id, k).filter((t) => t.done).length, 0);
+    return `<div class="ss-card ss-month" style="--pc:${u.color}">
+      <div class="ss-month-name"><span class="ss-dot"></span> ${esc(u.name)} &middot; ${monthName}</div>
+      <div class="ss-month-big">${avg === null ? "—" : avg + "%"}</div>
+      <div class="ss-month-sub">${keys.length === 0
+        ? "No study days logged yet this month."
+        : `${done} of ${total} tasks done across ${keys.length} study ${keys.length === 1 ? "day" : "days"}.`}</div>
+      <div class="ss-bar"><div class="ss-bar-fill" style="width:${avg ?? 0}%"></div></div>
+    </div>`;
+  }).join("");
+  return `<div class="ss-monthrow">${cards}</div>`;
+}
+
+function viewTests(room, identity) {
+  const users = room.users;
+  const tests = objList(room.tests).sort((a, b) => a.date < b.date ? 1 : -1);
+  const tKey = todayKey();
+  const rows = tests.map((t) => {
+    const u = users[t.userId];
+    const isMine = t.userId === identity.userId;
+    const due = t.date <= tKey;
+    let side = "";
+    if (t.status === "given") side = `<span class="ss-tag ss-tag-good">Gave it &#10003;</span>`;
+    else if (t.status === "missed") side = `<span class="ss-tag ss-tag-bad">Missed</span>`;
+    else if (!due) side = `<span class="ss-tag">${daysLeft(t.date) === 0 ? "Today" : "in " + daysLeft(t.date) + "d"}</span>`;
+    else if (isMine) side = `<span class="ss-test-actions">
+        <button class="ss-mini ss-mini-good" data-action="testGiven" data-id="${t.id}">Gave it</button>
+        <button class="ss-mini ss-mini-bad" data-action="testMissed" data-id="${t.id}">Missed</button>
+      </span>`;
+    else side = `<span class="ss-tag">awaiting update</span>`;
+    const canRemove = isMine || t.addedBy === identity.userId;
+    return `<li class="ss-test" style="--pc:${u ? u.color : "#999"}">
+      <div class="ss-test-main"><span class="ss-dot"></span>
+        <div class="ss-test-info"><strong>${esc(t.name)}</strong>
+          <span class="ss-test-meta">${u ? esc(u.name) : "—"} &middot; ${niceDate(t.date, true)}</span>
+        </div>
+      </div>
+      <div class="ss-test-side">${side}${canRemove ? `<button class="ss-x" data-action="removeTest" data-id="${t.id}" title="Remove test">&#10005;</button>` : ""}</div>
+    </li>`;
+  }).join("");
+  const forChips = Object.entries(users).map(([id, u]) =>
+    `<button type="button" class="ss-chip${(ui.testFor || identity.userId) === id ? " ss-chip-on" : ""}" data-action="pickTestFor" data-value="${id}">${id === identity.userId ? esc(u.name) + " (you)" : esc(u.name)}</button>`
+  ).join("");
+  const form = ui.addingTest
+    ? `<div class="ss-testform">
+        <input id="in-test-name" class="ss-input" data-bind="testName" value="${esc(ui.testName)}" placeholder="Test name — e.g. CSAT Mock 3" maxlength="50" />
+        <input id="in-test-date" class="ss-input" type="date" data-bind="testDate" value="${esc(ui.testDate)}" />
+        <div class="ss-trackpick">${forChips}</div>
+        <div class="ss-examform-actions">
+          <button class="ss-btn ss-btn-primary ss-btn-sm" data-action="addTest" ${ui.testName.trim() && ui.testDate ? "" : "disabled"}>Add test</button>
+          <button class="ss-btn ss-btn-ghost ss-btn-sm" data-action="cancelTest">Cancel</button>
+        </div>
+      </div>`
+    : `<button class="ss-btn ss-btn-ghost ss-btn-sm" data-action="openTest">+ Schedule a test</button>`;
+  return `<div class="ss-card ss-tests">
+    ${tests.length === 0 ? `<div class="ss-empty-msg" style="margin-bottom:12px">No tests scheduled. Add your next mock so it doesn't sneak up on you.</div>` : ""}
+    <ul class="ss-testlist">${rows}</ul>
+    ${form}
+  </div>`;
+}
+
+function viewApp() {
+  const room = state.room, identity = state.identity;
+  const me = room.users[identity.userId];
+  if (!me) { leaveRoom(); return viewWelcome(); }
+  const partnerId = Object.keys(room.users).find((id) => id !== identity.userId) || null;
+  const partner = partnerId ? room.users[partnerId] : null;
+  const todayLabel = parseKey(todayKey()).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+  return `<div class="ss-app">
+    <header class="ss-header">
+      <div class="ss-header-left">
+        <div class="ss-wordmark ss-wordmark-sm">Study<span>Sync</span></div>
+        <div class="ss-today">${todayLabel}</div>
+      </div>
+      <div class="ss-header-right">
+        <span class="ss-live${state.online ? " on" : ""}"><i></i>${state.online ? "live" : "offline"}</span>
+        <button class="ss-codebtn" data-action="copyCode" title="Tap to copy the room code">Room ${room.code}${state.copied ? " &middot; copied" : ""}</button>
+        <button class="ss-iconbtn" data-action="leaveRoom" title="Sign out of this room on this device">Leave</button>
+      </div>
+    </header>
+    ${state.error ? `<div class="ss-error ss-error-bar" data-action="clearError">${esc(state.error)} <span class="ss-error-x">&#10005;</span></div>` : ""}
+    ${!partner ? `<div class="ss-invite">Waiting for your partner — share the code <strong>${room.code}</strong> and they can join from &ldquo;Join with a code&rdquo;.</div>` : ""}
+    ${viewExamStrip(room)}
+    <section class="ss-section">
+      <h3 class="ss-h3">Today's plan</h3>
+      <div class="ss-columns">
+        ${viewPerson(room, identity.userId, me, true)}
+        ${partner
+          ? viewPerson(room, partnerId, partner, false)
+          : `<div class="ss-person ss-person-empty"><div class="ss-empty-msg">Your partner's day will appear here once they join.</div></div>`}
+      </div>
+    </section>
+    <section class="ss-section">
+      <h3 class="ss-h3">This week</h3>
+      ${viewWeek(room, identity.userId, partnerId)}
+    </section>
+    <section class="ss-section">
+      <h3 class="ss-h3">This month</h3>
+      ${viewMonth(room, identity.userId, partnerId)}
+    </section>
+    <section class="ss-section">
+      <h3 class="ss-h3">Tests &amp; mocks</h3>
+      ${viewTests(room, identity)}
+    </section>
+    <footer class="ss-footer">Every tick syncs instantly — your partner sees it the moment it happens.</footer>
+  </div>`;
+}
+
+/* ============================================================
+   render with focus preservation
+   ============================================================ */
+const app = document.getElementById("app");
+function render() {
+  const active = document.activeElement;
+  const focusId = active && active.id ? active.id : null;
+  let selStart = null;
+  try { selStart = active && typeof active.selectionStart === "number" ? active.selectionStart : null; } catch {}
+  let html = "";
+  switch (state.screen) {
+    case "config": html = viewConfig(); break;
+    case "boot": html = `<div class="ss-center"><div class="ss-boot">Opening your study room…</div></div>`; break;
+    case "welcome": html = viewWelcome(); break;
+    case "create": html = viewSetup("create"); break;
+    case "join": html = viewSetup("join"); break;
+    case "app": html = viewApp(); break;
+    default: html = viewWelcome();
+  }
+  app.innerHTML = html;
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    if (el) {
+      el.focus();
+      if (selStart !== null) { try { el.selectionStart = el.selectionEnd = selStart; } catch {} }
+    }
+  }
+}
+
+/* ============================================================
+   actions & event delegation
+   ============================================================ */
+const actions = {
+  goCreate() { state.error = ""; setState({ screen: "create" }); },
+  goJoin() { state.error = ""; setState({ screen: "join" }); },
+  goWelcome() { state.error = ""; setState({ screen: "welcome" }); },
+  pickTrack(d) { ui.track = d.value; render(); },
+  createRoom() { createRoom(); },
+  joinRoom() { joinRoom(); },
+  leaveRoom() { leaveRoom(); },
+  clearError() { setState({ error: "" }); },
+  copyCode() {
+    const code = state.room ? state.room.code : "";
+    const done = () => { state.copied = true; render(); setTimeout(() => { state.copied = false; render(); }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(done).catch(() => fallbackCopy(code) && done());
+    } else if (fallbackCopy(code)) done();
+  },
+  addTask() { addTask(); },
+  toggleTask(d) { toggleTask(d.id, d.done === "1"); },
+  removeTask(d) { removeTask(d.id); },
+  openExam() { ui.addingExam = true; render(); },
+  cancelExam() { ui.addingExam = false; ui.examName = ""; ui.examDate = ""; render(); },
+  addExam() { addExam(); },
+  removeExam(d) { removeExam(d.id); },
+  openTest() { ui.addingTest = true; ui.testFor = state.identity.userId; render(); },
+  cancelTest() { ui.addingTest = false; ui.testName = ""; ui.testDate = ""; render(); },
+  pickTestFor(d) { ui.testFor = d.value; render(); },
+  addTest() { addTest(); },
+  testGiven(d) { setTestStatus(d.id, "given"); },
+  testMissed(d) { setTestStatus(d.id, "missed"); },
+  removeTest(d) { removeTest(d.id); },
+};
+function fallbackCopy(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+  const fn = actions[el.dataset.action];
+  if (fn) fn(el.dataset, el);
+});
+document.addEventListener("input", (e) => {
+  const el = e.target;
+  if (!el.dataset || !el.dataset.bind) return;
+  let v = el.value;
+  if (el.dataset.bind === "joinCode") { v = v.toUpperCase(); el.value = v; }
+  ui[el.dataset.bind] = v;
+  syncButtons();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const el = e.target;
+  if (el.dataset && el.dataset.enter && actions[el.dataset.enter]) {
+    e.preventDefault();
+    actions[el.dataset.enter]();
+  }
+});
+
+/* keep button disabled states in sync without a full re-render (protects input focus) */
+function syncButtons() {
+  const map = [
+    ["addTask", () => !ui.taskText.trim()],
+    ["addExam", () => !(ui.examName.trim() && ui.examDate)],
+    ["addTest", () => !(ui.testName.trim() && ui.testDate)],
+    ["createRoom", () => !(ui.name.trim() && (ui.track === "Other" ? ui.customTrack : ui.track).trim()) || state.busy],
+    ["joinRoom", () => !(ui.name.trim() && (ui.track === "Other" ? ui.customTrack : ui.track).trim() && ui.joinCode.trim().length >= 4) || state.busy],
+  ];
+  for (const [action, isDisabled] of map) {
+    const btn = document.querySelector(`[data-action="${action}"]`);
+    if (btn) btn.disabled = isDisabled();
+  }
+}
+
+/* ============================================================
+   boot
+   ============================================================ */
+(function boot() {
+  if (!CONFIGURED) { render(); return; }
+  const id = readIdentity();
+  if (id && id.code && id.userId) {
+    state.identity = id;
+    attachRoom(id.code); // listener will flip us to "app" (or back to welcome if the room is gone)
+    render();
+  } else {
+    setState({ screen: "welcome" });
+  }
+})();
+</script>
+</body>
+</html>
