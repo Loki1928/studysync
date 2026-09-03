@@ -4,7 +4,7 @@ One board, two people. A real-time study accountability app for any pair of stud
 
 Whether it's UPSC and CA, NEET and JEE, GATE and CAT, board exams, language learning, or any goal you're grinding toward — StudySync keeps both of you honest, side by side.
 
-🔗 Live app: https://YOUR-USERNAME.github.io/study-sync/ (replace with your link)
+🔗 Live app: https://loki1928.github.io/studysync/
 
 Why this exists
 
