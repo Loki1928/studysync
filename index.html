@@ -163,6 +163,28 @@
   @media (hover: none) { .ss-x-task { opacity: .6; } }
   .ss-addrow { display: flex; gap: 8px; margin-top: 12px; }
 
+  /* partial progress on tasks */
+  .ss-task-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .ss-task-body .ss-task-text { flex: none; }
+  .ss-taskbar { height: 3px; background: #ECEDE7; border-radius: 999px; overflow: hidden; width: 100%; max-width: 180px; }
+  .ss-taskbar span { display: block; height: 100%; background: var(--pc, var(--ink)); border-radius: 999px; transition: width .25s ease; }
+  .ss-pctchip {
+    flex: none; border: 1px solid var(--line); background: #fff; border-radius: 999px;
+    padding: 2px 9px; font-size: 12px; color: var(--muted);
+  }
+  .ss-pctchip.on { border-color: var(--pc, var(--ink)); color: var(--pc, var(--ink)); font-weight: 600; }
+  button.ss-pctchip:hover { border-color: var(--pc, var(--ink)); color: var(--pc, var(--ink)); }
+  .ss-progrow {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 2px 0 12px 32px; border-bottom: 1px solid #F0F1EB;
+  }
+  .ss-range { flex: 1; min-width: 110px; accent-color: var(--pc, var(--ink)); }
+  .ss-progval { font-size: 12.5px; font-weight: 600; min-width: 38px; }
+  .ss-progchips { display: flex; gap: 5px; }
+  .ss-pchip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+  .ss-pchip:hover { border-color: var(--pc, var(--ink)); }
+  .ss-pchip-on { background: var(--pc, var(--ink)); border-color: var(--pc, var(--ink)); color: #fff; }
+
   /* ---------- week chart ---------- */
   .ss-week { padding: 16px 16px 12px; }
   .ss-week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
@@ -209,22 +231,22 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase, ref, get, set, remove, onValue, off, runTransaction
+  getDatabase, ref, get, set, update, remove, onValue, off, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 /* ============================================================
    1. FIREBASE CONFIG — paste yours here (see SETUP.md)
    Firebase Console → Project settings → Your apps → Web app
    ============================================================ */
- const firebaseConfig = {
-    apiKey: "AIzaSyAWnTvm_3HSwDmevp1x-sR7B8z8nknIHro",
-    authDomain: "studysync-6d403.firebaseapp.com",
-    databaseURL: "https://studysync-6d403-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "studysync-6d403",
-    storageBucket: "studysync-6d403.firebasestorage.app",
-    messagingSenderId: "266412790521",
-    appId: "1:266412790521:web:f954b8fb5b1c0c11df4828"
-  };
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "PASTE_YOUR_DATABASE_URL",
+  projectId: "PASTE_YOUR_PROJECT_ID",
+  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_YOUR_SENDER_ID",
+  appId: "PASTE_YOUR_APP_ID"
+};
 
 const CONFIGURED = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE");
 const SLOT_COLORS = ["#3F5B8B", "#1F7A63"];
@@ -284,7 +306,7 @@ let state = {
 };
 let ui = {
   name: "", track: "UPSC", customTrack: "", joinCode: "",
-  taskText: "",
+  taskText: "", editingTask: null,
   addingExam: false, examName: "", examDate: "",
   addingTest: false, testName: "", testDate: "", testFor: null,
 };
@@ -394,7 +416,7 @@ async function joinRoom() {
 
 function leaveRoom() {
   detachRoom(); clearIdentity();
-  ui = { ...ui, taskText: "", addingExam: false, addingTest: false, joinCode: "" };
+  ui = { ...ui, taskText: "", editingTask: null, addingExam: false, addingTest: false, joinCode: "" };
   setState({ screen: "welcome", identity: null, room: null, error: "" });
 }
 
@@ -408,15 +430,23 @@ function addTask() {
   const id = uid();
   guardWrite(set(
     roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${id}`),
-    { text, done: false, at: Date.now() }
+    { text, done: false, progress: 0, at: Date.now() }
   ));
   ui.taskText = "";
   render();
 }
-function toggleTask(taskId, done) {
-  guardWrite(set(
-    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${taskId}/done`),
-    !done
+function toggleTask(taskId, p) {
+  const full = p >= 100;
+  guardWrite(update(
+    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${taskId}`),
+    full ? { progress: 0, done: false } : { progress: 100, done: true }
+  ));
+}
+function setTaskProgress(taskId, val) {
+  val = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+  guardWrite(update(
+    roomRef(state.identity.code, `tasks/${todayKey()}/${state.identity.userId}/${taskId}`),
+    { progress: val, done: val >= 100 }
   ));
 }
 function removeTask(taskId) {
@@ -463,9 +493,13 @@ function dayTasks(room, userId, dateKey) {
     .map(([id, t]) => ({ id, ...t }))
     .sort((a, b) => (a.at || 0) - (b.at || 0));
 }
+function prog(t) {
+  if (typeof t.progress === "number") return Math.max(0, Math.min(100, t.progress));
+  return t.done ? 100 : 0; // older tasks that only have done/not-done
+}
 function pctOf(list) {
   if (!list.length) return null;
-  return Math.round((100 * list.filter((t) => t.done).length) / list.length);
+  return Math.round(list.reduce((sum, t) => sum + prog(t), 0) / list.length);
 }
 function dayPct(room, userId, dateKey) { return pctOf(dayTasks(room, userId, dateKey)); }
 function rangeAvg(room, userId, dateKeys) {
@@ -484,7 +518,7 @@ function streak(room, userId) {
   let s = 0; const now = new Date();
   for (let i = 0; i < 365; i++) {
     const k = keyOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i));
-    const doneAny = dayTasks(room, userId, k).some((t) => t.done);
+    const doneAny = dayTasks(room, userId, k).some((t) => prog(t) > 0);
     if (doneAny) s++;
     else if (i === 0) continue; // today not done yet shouldn't break the streak
     else break;
@@ -587,12 +621,32 @@ function viewPerson(room, userId, user, editable) {
   const tasks = dayTasks(room, userId, todayKey());
   const p = pctOf(tasks);
   const st = streak(room, userId);
-  const items = tasks.map((t) => `
-    <li class="ss-task${t.done ? " ss-task-done" : ""}">
-      <button class="ss-check" ${editable ? `data-action="toggleTask" data-id="${t.id}" data-done="${t.done ? 1 : 0}"` : "disabled"} aria-label="${t.done ? "Mark not done" : "Mark done"}">${t.done ? "&#10003;" : ""}</button>
-      <span class="ss-task-text">${esc(t.text)}</span>
+  const items = tasks.map((t) => {
+    const tp = prog(t);
+    const full = tp >= 100;
+    const partial = tp > 0 && tp < 100;
+    const checkStyle = partial ? ` style="background:linear-gradient(to top, ${user.color} ${tp}%, #fff ${tp}%)"` : "";
+    const editor = editable && ui.editingTask === t.id ? `
+    <li class="ss-progrow">
+      <input type="range" min="0" max="100" step="5" value="${tp}" data-progress-for="${t.id}" id="pr-${t.id}" class="ss-range" aria-label="Progress for ${esc(t.text)}" />
+      <span class="ss-progval" id="pv-${t.id}">${tp}%</span>
+      <span class="ss-progchips">${[25, 50, 75, 100].map((v) =>
+        `<button type="button" class="ss-pchip${tp === v ? " ss-pchip-on" : ""}" data-action="setProgress" data-id="${t.id}" data-value="${v}">${v === 100 ? "&#10003;" : v}</button>`
+      ).join("")}</span>
+    </li>` : "";
+    return `
+    <li class="ss-task${full ? " ss-task-done" : ""}">
+      <button class="ss-check"${checkStyle} ${editable ? `data-action="toggleTask" data-id="${t.id}" data-prog="${tp}"` : "disabled"} aria-label="${full ? "Mark not done" : "Mark done"}" title="${editable ? (full ? "Tap: back to 0%" : "Tap: mark 100%") : ""}">${full ? "&#10003;" : ""}</button>
+      <span class="ss-task-body">
+        <span class="ss-task-text">${esc(t.text)}</span>
+        ${partial ? `<span class="ss-taskbar"><span style="width:${tp}%"></span></span>` : ""}
+      </span>
+      ${editable
+        ? `<button class="ss-pctchip${partial ? " on" : ""}" data-action="openProgress" data-id="${t.id}" title="Set partial progress — e.g. chapter 60% done">${tp}%</button>`
+        : (partial ? `<span class="ss-pctchip on">${tp}%</span>` : "")}
       ${editable ? `<button class="ss-x ss-x-task" data-action="removeTask" data-id="${t.id}" title="Delete task">&#10005;</button>` : ""}
-    </li>`).join("");
+    </li>${editor}`;
+  }).join("");
   const empty = tasks.length === 0
     ? `<li class="ss-task-none">${editable ? "Nothing planned yet — add your first task for today." : esc(user.name) + " hasn't planned today yet."}</li>`
     : "";
@@ -650,7 +704,7 @@ function viewMonth(room, meId, partnerId) {
     const keys = monthKeys(room, id);
     const avg = rangeAvg(room, id, keys);
     const total = keys.reduce((n, k) => n + dayTasks(room, id, k).length, 0);
-    const done = keys.reduce((n, k) => n + dayTasks(room, id, k).filter((t) => t.done).length, 0);
+    const done = keys.reduce((n, k) => n + dayTasks(room, id, k).filter((t) => prog(t) >= 100).length, 0);
     return `<div class="ss-card ss-month" style="--pc:${u.color}">
       <div class="ss-month-name"><span class="ss-dot"></span> ${esc(u.name)} &middot; ${monthName}</div>
       <div class="ss-month-big">${avg === null ? "—" : avg + "%"}</div>
@@ -807,8 +861,10 @@ const actions = {
     } else if (fallbackCopy(code)) done();
   },
   addTask() { addTask(); },
-  toggleTask(d) { toggleTask(d.id, d.done === "1"); },
+  toggleTask(d) { toggleTask(d.id, Number(d.prog)); },
   removeTask(d) { removeTask(d.id); },
+  openProgress(d) { ui.editingTask = ui.editingTask === d.id ? null : d.id; render(); },
+  setProgress(d) { setTaskProgress(d.id, d.value); ui.editingTask = null; render(); },
   openExam() { ui.addingExam = true; render(); },
   cancelExam() { ui.addingExam = false; ui.examName = ""; ui.examDate = ""; render(); },
   addExam() { addExam(); },
@@ -839,11 +895,23 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("input", (e) => {
   const el = e.target;
+  if (el.dataset && el.dataset.progressFor) {
+    const lbl = document.getElementById("pv-" + el.dataset.progressFor);
+    if (lbl) lbl.textContent = el.value + "%";
+    return;
+  }
   if (!el.dataset || !el.dataset.bind) return;
   let v = el.value;
   if (el.dataset.bind === "joinCode") { v = v.toUpperCase(); el.value = v; }
   ui[el.dataset.bind] = v;
   syncButtons();
+});
+document.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.dataset && el.dataset.progressFor) {
+    setTaskProgress(el.dataset.progressFor, el.value);
+    ui.editingTask = null;
+  }
 });
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
