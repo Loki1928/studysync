@@ -402,6 +402,22 @@ async function joinRoom() {
       setState({ busy: false, error: "No room found with that code. Double-check it with your study partner." });
       return;
     }
+    // Reclaim: if someone in this room already has this name, that's you signing
+    // back in (e.g. after Leave, a cleared browser, or a new device). Adopt the
+    // existing userId so history, streaks and colors stay intact — and so a
+    // "full" room never locks out its own members.
+    const existingUsers = (snap.val() && snap.val().users) || {};
+    const match = Object.entries(existingUsers).find(([, u]) =>
+      u && typeof u.name === "string" && u.name.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (match) {
+      const identity = { code, userId: match[0], name: match[1].name };
+      writeIdentity(identity);
+      state.identity = identity;
+      attachRoom(code);
+      setState({ busy: false });
+      return;
+    }
     const userId = "u-" + uid();
     const result = await runTransaction(roomRef(code, "users"), (users) => {
       users = users || {};
@@ -410,7 +426,7 @@ async function joinRoom() {
       return users;
     });
     if (!result.committed) {
-      setState({ busy: false, error: "This room already has two people. StudySync rooms are built for exactly two." });
+      setState({ busy: false, error: "This room already has two people. If one of them is you, type the exact name you used before and you'll be signed back in." });
       return;
     }
     const identity = { code, userId, name };
@@ -601,6 +617,7 @@ function viewSetup(mode) {
       <div class="ss-trackpick">${chips}</div>
       ${ui.track === "Other" ? `<input id="in-track" class="ss-input" style="margin-top:8px" data-bind="customTrack" value="${esc(ui.customTrack)}" placeholder="Name the exam or goal" maxlength="30" />` : ""}
     </div>
+    ${mode === "join" ? `<p class="ss-fineprint" style="text-align:left;margin:0 0 14px">Rejoining a room you were already in? Use the same name as before — you'll be signed straight back into your side of the board.</p>` : ""}
     ${state.error ? `<div class="ss-error">${esc(state.error)}</div>` : ""}
     <button class="ss-btn ss-btn-primary ss-btn-block" data-action="${mode === "create" ? "createRoom" : "joinRoom"}" ${canGo && !state.busy ? "" : "disabled"}>
       ${state.busy ? "Setting things up…" : mode === "create" ? "Create room &amp; get code" : "Join room"}
@@ -707,7 +724,7 @@ function viewWeek(room, meId, partnerId) {
   const cols = days.map((k) => {
     const a = dayPct(room, meId, k);
     const b = partnerId ? dayPct(room, partnerId, k) : null;
-    return `<div class="ss-daycol${k === todayKey() ? " ss-daycol-today" : ""}${k === ui.viewDate ? " ss-daycol-viewed" : ""}" data-action="gotoDate" data-date="${k}" title="Open this day" role="button" tabindex="0">>
+    return `<div class="ss-daycol${k === todayKey() ? " ss-daycol-today" : ""}${k === ui.viewDate ? " ss-daycol-viewed" : ""}" data-action="gotoDate" data-date="${k}" title="Open this day" role="button" tabindex="0">
       <div class="ss-daybars">
         <div class="ss-vbar" title="${a === null ? "No tasks" : a + "%"}"><div class="ss-vbar-fill" style="height:${a ?? 0}%;background:${meColor};opacity:${a === null ? 0.15 : 1}"></div></div>
         <div class="ss-vbar" title="${b === null ? "No tasks" : b + "%"}"><div class="ss-vbar-fill" style="height:${b ?? 0}%;background:${paColor};opacity:${b === null ? 0.15 : 1}"></div></div>
